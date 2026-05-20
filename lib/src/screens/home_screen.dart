@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
-import '../data/sample_data.dart';
 import '../models/place.dart';
+import '../repositories/place_repository.dart';
+import '../services/location_service.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gamification_panel.dart';
+import '../widgets/map_preview.dart';
 import '../widgets/place_card.dart';
 import 'place_detail_screen.dart';
 
@@ -15,18 +18,72 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _locationService = LocationService();
+  final _placeRepository = PlaceRepository();
+
   PlaceType? selectedType;
+  LatLng? center;
+  List<Place> places = const [];
+  bool isLoading = true;
+  String? statusMessage;
 
   List<Place> get visiblePlaces => selectedType == null
-      ? samplePlaces
-      : samplePlaces.where((place) => place.type == selectedType).toList();
+      ? places
+      : places.where((place) => place.type == selectedType).toList();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNearbyPlaces();
+  }
+
+  Future<void> _loadNearbyPlaces() async {
+    setState(() {
+      isLoading = true;
+      statusMessage = null;
+    });
+
+    try {
+      final currentCenter = await _locationService.getCurrentLocationOrFallback();
+      final nearbyPlaces = await _placeRepository.getNearbyPlaces(currentCenter);
+
+      if (!mounted) return;
+      setState(() {
+        center = currentCenter;
+        places = nearbyPlaces;
+        isLoading = false;
+        statusMessage = nearbyPlaces.isEmpty ? 'No nearby spots found yet.' : null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        center = LocationService.parisFallback;
+        places = const [];
+        isLoading = false;
+        statusMessage = 'Could not load nearby spots. Pull to retry.';
+      });
+    }
+  }
+
+  void _openPlace(Place place) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => PlaceDetailScreen(place: place)),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final currentCenter = center ?? LocationService.parisFallback;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('FlowSpot'),
         actions: [
+          IconButton(
+            tooltip: 'Refresh nearby spots',
+            onPressed: _loadNearbyPlaces,
+            icon: const Icon(Icons.refresh),
+          ),
           IconButton(
             tooltip: 'Add spot',
             onPressed: () {},
@@ -34,94 +91,107 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _HeroMapPlaceholder(selectedType: selectedType),
-          const SizedBox(height: 12),
-          _FilterChips(
-            selectedType: selectedType,
-            onChanged: (type) => setState(() => selectedType = type),
-          ),
-          const SizedBox(height: 12),
-          const AdPlaceholder(label: 'Native ad placeholder: nearby city utility'),
-          const SizedBox(height: 16),
-          Text('Nearby spots', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          ...visiblePlaces.map(
-            (place) => PlaceCard(
-              place: place,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => PlaceDetailScreen(place: place),
-                ),
+      body: RefreshIndicator(
+        onRefresh: _loadNearbyPlaces,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            if (isLoading)
+              const _LoadingMapCard()
+            else
+              MapPreview(
+                center: currentCenter,
+                places: visiblePlaces,
+                onPlaceTap: _openPlace,
               ),
+            const SizedBox(height: 12),
+            _FilterChips(
+              selectedType: selectedType,
+              onChanged: (type) => setState(() => selectedType = type),
             ),
-          ),
-          const SizedBox(height: 16),
-          const GamificationPanel(),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroMapPlaceholder extends StatelessWidget {
-  const _HeroMapPlaceholder({required this.selectedType});
-
-  final PlaceType? selectedType;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = selectedType == null
-        ? 'Toilets + fountains near you'
-        : selectedType == PlaceType.toilet
-            ? 'Public toilets near you'
-            : 'Drinking fountains near you';
-
-    return Container(
-      height: 220,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFE0F7F4), Color(0xFFDDF0FF)],
-        ),
-      ),
-      child: Stack(
-        children: [
-          const Positioned(top: 36, left: 42, child: _MapPin(icon: Icons.wc)),
-          const Positioned(bottom: 48, right: 52, child: _MapPin(icon: Icons.water_drop)),
-          const Positioned(top: 84, right: 112, child: _MapPin(icon: Icons.wc)),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 12),
+            const AdPlaceholder(label: 'Native ad placeholder: nearby city utility'),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                const Icon(Icons.map_outlined, size: 40),
-                const SizedBox(height: 8),
-                Text(label, style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 4),
-                const Text('Real map integration comes next'),
+                Text('Nearby spots', style: Theme.of(context).textTheme.titleLarge),
+                const Spacer(),
+                if (!isLoading) Text('${visiblePlaces.length} found'),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 8),
+            if (isLoading)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: CircularProgressIndicator(),
+                ),
+              )
+            else if (statusMessage != null)
+              _StatusCard(message: statusMessage!, onRetry: _loadNearbyPlaces)
+            else
+              ...visiblePlaces.map(
+                (place) => PlaceCard(place: place, onTap: () => _openPlace(place)),
+              ),
+            const SizedBox(height: 16),
+            const GamificationPanel(),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _MapPin extends StatelessWidget {
-  const _MapPin({required this.icon});
-
-  final IconData icon;
+class _LoadingMapCard extends StatelessWidget {
+  const _LoadingMapCard();
 
   @override
   Widget build(BuildContext context) {
-    return CircleAvatar(
-      backgroundColor: Theme.of(context).colorScheme.primary,
-      child: Icon(icon, color: Colors.white),
+    return Container(
+      height: 240,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      ),
+      child: const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 12),
+            Text('Finding toilets and fountains nearby...'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  const _StatusCard({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(Icons.info_outline),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
