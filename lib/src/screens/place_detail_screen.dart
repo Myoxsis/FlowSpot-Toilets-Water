@@ -2,13 +2,47 @@ import 'package:flutter/material.dart';
 
 import '../data/sample_data.dart';
 import '../models/place.dart';
+import '../models/review.dart';
 import '../widgets/ad_placeholder.dart';
+import '../widgets/quick_review_sheet.dart';
 import '../widgets/review_card.dart';
 
-class PlaceDetailScreen extends StatelessWidget {
+class PlaceDetailScreen extends StatefulWidget {
   const PlaceDetailScreen({super.key, required this.place});
 
   final Place place;
+
+  @override
+  State<PlaceDetailScreen> createState() => _PlaceDetailScreenState();
+}
+
+class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
+  final List<Review> _reviews = [...sampleReviews];
+  int _sessionPoints = 0;
+
+  Place get place => widget.place;
+
+  Future<void> _openQuickReview() async {
+    final review = await showModalBottomSheet<Review>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => QuickReviewSheet(place: place),
+    );
+
+    if (review == null || !mounted) return;
+
+    setState(() {
+      _reviews.insert(0, review);
+      _sessionPoints += 5;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Thanks! You earned +5 pts. Session total: $_sessionPoints pts'),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,10 +53,26 @@ class PlaceDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Icon(isToilet ? Icons.wc : Icons.water_drop, size: 48),
-          const SizedBox(height: 8),
-          Text(place.name, style: Theme.of(context).textTheme.headlineSmall),
-          Text('${place.typeLabel} • ${place.distanceLabel} • ${place.address}'),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(isToilet ? Icons.wc : Icons.water_drop, size: 48),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(place.name, style: Theme.of(context).textTheme.headlineSmall),
+                    Text('${place.typeLabel} • ${place.distanceLabel} • ${place.address}'),
+                    if (_sessionPoints > 0) ...[
+                      const SizedBox(height: 6),
+                      Text('Session contribution: +$_sessionPoints pts'),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -48,7 +98,7 @@ class PlaceDetailScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () {},
+            onPressed: _openQuickReview,
             icon: const Icon(Icons.rate_review_outlined),
             label: const Text('Add quick review +5 pts'),
           ),
@@ -57,7 +107,7 @@ class PlaceDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           Text('Recent reviews', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          ...sampleReviews.map((review) => ReviewCard(review: review)),
+          ..._reviews.map((review) => ReviewCard(review: review)),
         ],
       ),
     );
