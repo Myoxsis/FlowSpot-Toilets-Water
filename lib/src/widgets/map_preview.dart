@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/place.dart';
+import 'place_preview_sheet.dart';
 
 class MapPreview extends StatelessWidget {
   const MapPreview({
@@ -15,6 +16,20 @@ class MapPreview extends StatelessWidget {
   final LatLng center;
   final List<Place> places;
   final ValueChanged<Place> onPlaceTap;
+
+  void _showPlacePreview(BuildContext context, Place place) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => PlacePreviewSheet(
+        place: place,
+        onOpenDetails: () {
+          Navigator.of(context).pop();
+          onPlaceTap(place);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +59,7 @@ class MapPreview extends StatelessWidget {
                     height: 42,
                     child: IconButton.filled(
                       iconSize: 20,
-                      onPressed: () => onPlaceTap(place),
+                      onPressed: () => _showPlacePreview(context, place),
                       icon: Icon(place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop),
                     ),
                   ),
