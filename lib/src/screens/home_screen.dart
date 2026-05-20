@@ -5,6 +5,7 @@ import '../models/place.dart';
 import '../repositories/place_repository.dart';
 import '../services/local_contribution_store.dart';
 import '../services/location_service.dart';
+import '../services/place_quality_service.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gamification_panel.dart';
 import '../widgets/map_preview.dart';
@@ -22,6 +23,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _locationService = LocationService();
   final _placeRepository = PlaceRepository();
+  final _qualityService = const PlaceQualityService();
   final _store = LocalContributionStore();
 
   PlaceType? selectedType;
@@ -31,9 +33,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool isLoading = true;
   String? statusMessage;
 
-  List<Place> get visiblePlaces => selectedType == null
-      ? places
-      : places.where((place) => place.type == selectedType).toList();
+  List<Place> get visiblePlaces {
+    final filtered = selectedType == null
+        ? places
+        : places.where((place) => place.type == selectedType).toList();
+    return _qualityService.sortRecentlyVerified(filtered);
+  }
 
   @override
   void initState() {
@@ -140,11 +145,13 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             Row(
               children: [
-                Text('Nearby spots', style: Theme.of(context).textTheme.titleLarge),
+                Text('Recently verified', style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
                 if (!isLoading) Text('${visiblePlaces.length} found'),
               ],
             ),
+            const SizedBox(height: 4),
+            const Text('Sorted by trust, recent verification, then distance.'),
             const SizedBox(height: 8),
             if (isLoading)
               const Center(
