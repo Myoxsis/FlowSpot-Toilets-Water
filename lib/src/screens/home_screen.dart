@@ -3,11 +3,13 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/place.dart';
 import '../repositories/place_repository.dart';
+import '../services/local_contribution_store.dart';
 import '../services/location_service.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gamification_panel.dart';
 import '../widgets/map_preview.dart';
 import '../widgets/place_card.dart';
+import 'favorites_screen.dart';
 import 'place_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,10 +22,12 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _locationService = LocationService();
   final _placeRepository = PlaceRepository();
+  final _store = LocalContributionStore();
 
   PlaceType? selectedType;
   LatLng? center;
   List<Place> places = const [];
+  Set<String> favoriteIds = const {};
   bool isLoading = true;
   String? statusMessage;
 
@@ -46,11 +50,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final currentCenter = await _locationService.getCurrentLocationOrFallback();
       final nearbyPlaces = await _placeRepository.getNearbyPlaces(currentCenter);
+      final favorites = await _store.loadFavoritePlaceIds();
 
       if (!mounted) return;
       setState(() {
         center = currentCenter;
         places = nearbyPlaces;
+        favoriteIds = favorites;
         isLoading = false;
         statusMessage = nearbyPlaces.isEmpty ? 'No nearby spots found yet.' : null;
       });
@@ -59,16 +65,31 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         center = LocationService.parisFallback;
         places = const [];
+        favoriteIds = const {};
         isLoading = false;
         statusMessage = 'Could not load nearby spots. Pull to retry.';
       });
     }
   }
 
-  void _openPlace(Place place) {
-    Navigator.of(context).push(
+  Future<void> _refreshFavorites() async {
+    final favorites = await _store.loadFavoritePlaceIds();
+    if (!mounted) return;
+    setState(() => favoriteIds = favorites);
+  }
+
+  Future<void> _openPlace(Place place) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => PlaceDetailScreen(place: place)),
     );
+    await _refreshFavorites();
+  }
+
+  Future<void> _openFavorites() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => FavoritesScreen(places: places)),
+    );
+    await _refreshFavorites();
   }
 
   @override
@@ -79,6 +100,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('FlowSpot'),
         actions: [
+          IconButton(
+            tooltip: 'Favorites',
+            onPressed: _openFavorites,
+            icon: const Icon(Icons.favorite_border),
+          ),
           IconButton(
             tooltip: 'Refresh nearby spots',
             onPressed: _loadNearbyPlaces,
@@ -131,7 +157,11 @@ class _HomeScreenState extends State<HomeScreen> {
               _StatusCard(message: statusMessage!, onRetry: _loadNearbyPlaces)
             else
               ...visiblePlaces.map(
-                (place) => PlaceCard(place: place, onTap: () => _openPlace(place)),
+                (place) => PlaceCard(
+                  place: place,
+                  isFavorite: favoriteIds.contains(place.id),
+                  onTap: () => _openPlace(place),
+                ),
               ),
             const SizedBox(height: 16),
             const GamificationPanel(),
