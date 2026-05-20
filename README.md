@@ -10,7 +10,7 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Nearby public toilets and fountains from OpenStreetMap/Overpass
 - Place detail screen
 - Quick-review bottom sheet with structured tags
-- In-session contribution points confirmation
+- Local persistence for quick reviews and contribution points
 - Review summaries and quick-review attributes
 - Gamification profile with points, levels, badges, and contribution actions
 - Ad placement placeholders for an ads-first monetization model
@@ -40,7 +40,7 @@ FlowSpot should prioritize speed and trust:
    - `amenity=toilets`
    - `amenity=drinking_water`
 4. If Overpass fails, sample data is shown.
-5. Quick reviews are stored in-memory for the current session.
+5. Quick reviews and contribution points are persisted locally with SharedPreferences.
 
 ## Next milestones
 

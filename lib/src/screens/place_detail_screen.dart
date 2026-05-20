@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/sample_data.dart';
 import '../models/place.dart';
 import '../models/review.dart';
+import '../services/local_contribution_store.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/quick_review_sheet.dart';
 import '../widgets/review_card.dart';
@@ -17,10 +18,30 @@ class PlaceDetailScreen extends StatefulWidget {
 }
 
 class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
+  final _store = LocalContributionStore();
   final List<Review> _reviews = [...sampleReviews];
-  int _sessionPoints = 0;
+  int _totalPoints = 0;
+  bool _isLoadingSavedReviews = true;
 
   Place get place => widget.place;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLocalContributions();
+  }
+
+  Future<void> _loadLocalContributions() async {
+    final savedReviews = await _store.loadReviewsForPlace(place.id);
+    final points = await _store.loadPoints();
+
+    if (!mounted) return;
+    setState(() {
+      _reviews.insertAll(0, savedReviews);
+      _totalPoints = points;
+      _isLoadingSavedReviews = false;
+    });
+  }
 
   Future<void> _openQuickReview() async {
     final review = await showModalBottomSheet<Review>(
@@ -32,14 +53,18 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
 
     if (review == null || !mounted) return;
 
+    await _store.saveReviewForPlace(place.id, review);
+    final newTotal = await _store.addPoints(5);
+
+    if (!mounted) return;
     setState(() {
       _reviews.insert(0, review);
-      _sessionPoints += 5;
+      _totalPoints = newTotal;
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Thanks! You earned +5 pts. Session total: $_sessionPoints pts'),
+        content: Text('Thanks! You earned +5 pts. Total: $_totalPoints pts'),
       ),
     );
   }
@@ -64,9 +89,9 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
                   children: [
                     Text(place.name, style: Theme.of(context).textTheme.headlineSmall),
                     Text('${place.typeLabel} • ${place.distanceLabel} • ${place.address}'),
-                    if (_sessionPoints > 0) ...[
+                    if (_totalPoints > 0) ...[
                       const SizedBox(height: 6),
-                      Text('Session contribution: +$_sessionPoints pts'),
+                      Text('Your contribution total: $_totalPoints pts'),
                     ],
                   ],
                 ),
@@ -107,7 +132,13 @@ class _PlaceDetailScreenState extends State<PlaceDetailScreen> {
           const SizedBox(height: 16),
           Text('Recent reviews', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          ..._reviews.map((review) => ReviewCard(review: review)),
+          if (_isLoadingSavedReviews)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            ..._reviews.map((review) => ReviewCard(review: review)),
         ],
       ),
     );
