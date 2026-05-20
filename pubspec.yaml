@@ -1,0 +1,19 @@
+name: flowspot_toilets_water
+description: FlowSpot — Toilets & Water, a Flutter app for finding public toilets and drinking fountains.
+publish_to: 'none'
+version: 0.2.0+2
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  http: ^1.2.2
+  geolocator: ^13.0.1
+
+flutter:
+  uses-material-design: true
