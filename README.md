@@ -11,6 +11,8 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Nearby public toilets and fountains from OpenStreetMap/Overpass
 - Recently verified sorting
 - Trust score algorithm foundation
+- Offline cache for the last successful nearby results
+- Supabase backend scaffolding
 - Place detail screen
 - Quick-review bottom sheet with structured tags
 - Local persistence for quick reviews, favorites, and contribution points
@@ -25,6 +27,23 @@ flutter pub get
 flutter run
 ```
 
+## Supabase setup
+
+Replace the placeholder values in:
+
+- `lib/src/services/supabase_service.dart`
+
+with your:
+- Supabase URL
+- Supabase anon key
+
+Future backend targets:
+- shared reviews
+- shared trust score signals
+- contributor leaderboard
+- image uploads
+- moderation queue
+
 ## Product direction
 
 FlowSpot should prioritize speed and trust:
@@ -34,23 +53,3 @@ FlowSpot should prioritize speed and trust:
 3. Let users review in a few taps
 4. Reward useful community contributions
 5. Keep ads lightweight and non-blocking
-
-## Current data flow
-
-1. The app requests location permission.
-2. If permission is denied, it uses Paris as a fallback.
-3. The app queries Overpass for:
-   - `amenity=toilets`
-   - `amenity=drinking_water`
-4. Places are sorted by trust score, verification recency, then distance.
-5. If Overpass fails, sample data is shown.
-6. Quick reviews, favorites, and contribution points are persisted locally with SharedPreferences.
-
-## Next milestones
-
-- Add Android/iOS permission configuration files
-- Add offline city cache
-- Persist reviews with Supabase or Firebase
-- Add moderation and anti-spam rules
-- Integrate AdMob banners/native placements
-- Add offline city packs
