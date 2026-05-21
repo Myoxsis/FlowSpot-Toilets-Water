@@ -32,7 +32,7 @@ ThemeData buildFlowSpotTheme() {
         color: AppColors.textStrong,
       ),
     ),
-    cardTheme: CardTheme(
+    cardTheme: CardThemeData(
       color: AppColors.surface,
       elevation: 0,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),

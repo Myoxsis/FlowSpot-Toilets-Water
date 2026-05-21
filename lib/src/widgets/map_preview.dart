@@ -139,16 +139,6 @@ class _MapPreviewState extends State<MapPreview> {
     );
   }
 
-  void _handlePositionChanged(MapPosition position) {
-    final newZoom = position.zoom;
-    if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
-
-    setState(() {
-      _zoom = newZoom;
-      _rebuildClusterCache();
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -159,7 +149,14 @@ class _MapPreviewState extends State<MapPreview> {
           options: MapOptions(
             initialCenter: widget.center,
             initialZoom: _zoom,
-            onPositionChanged: (position, _) => _handlePositionChanged(position),
+            onPositionChanged: (position, _) {
+              final newZoom = position.zoom;
+              if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
+              setState(() {
+                _zoom = newZoom;
+                _rebuildClusterCache();
+              });
+            },
           ),
           children: [
             TileLayer(
