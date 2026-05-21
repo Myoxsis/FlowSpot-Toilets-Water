@@ -6,6 +6,7 @@ import 'package:latlong2/latlong.dart';
 
 import '../models/place.dart';
 import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
 import 'map_cluster_marker.dart';
 import 'map_marker.dart';
 import 'place_preview_sheet.dart';
@@ -28,8 +29,40 @@ class MapPreview extends StatefulWidget {
 
 class _MapPreviewState extends State<MapPreview> {
   double _zoom = 15;
+  int? _cachedZoomBucket;
+  int? _cachedPlaceCount;
+  List<_PlaceCluster> _cachedClusters = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildClusterCache();
+  }
+
+  @override
+  void didUpdateWidget(covariant MapPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.places.length != widget.places.length || oldWidget.places != widget.places) {
+      _rebuildClusterCache();
+    }
+  }
+
+  int get _zoomBucket => (_zoom * 10).round();
+
+  void _rebuildClusterCache() {
+    _cachedZoomBucket = _zoomBucket;
+    _cachedPlaceCount = widget.places.length;
+    _cachedClusters = _buildClusters();
+  }
 
   List<_PlaceCluster> get _clusters {
+    if (_cachedZoomBucket != _zoomBucket || _cachedPlaceCount != widget.places.length) {
+      _rebuildClusterCache();
+    }
+    return _cachedClusters;
+  }
+
+  List<_PlaceCluster> _buildClusters() {
     if (_zoom >= 16) {
       return widget.places.map((place) => _PlaceCluster([place])).toList();
     }
@@ -39,7 +72,14 @@ class _MapPreviewState extends State<MapPreview> {
 
     for (final place in widget.places) {
       final point = LatLng(place.latitude, place.longitude);
-      final match = clusters.where((cluster) => _distance(cluster.center, point) < threshold).firstOrNull;
+      _PlaceCluster? match;
+
+      for (final cluster in clusters) {
+        if (_distance(cluster.center, point) < threshold) {
+          match = cluster;
+          break;
+        }
+      }
 
       if (match == null) {
         clusters.add(_PlaceCluster([place]));
@@ -78,10 +118,10 @@ class _MapPreviewState extends State<MapPreview> {
       builder: (_) => SafeArea(
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             Text('${cluster.places.length} spots nearby', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             ...cluster.places.map(
               (place) => ListTile(
                 leading: Icon(place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop),
@@ -99,6 +139,16 @@ class _MapPreviewState extends State<MapPreview> {
     );
   }
 
+  void _handlePositionChanged(MapPosition position) {
+    final newZoom = position.zoom;
+    if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
+
+    setState(() {
+      _zoom = newZoom;
+      _rebuildClusterCache();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -109,12 +159,7 @@ class _MapPreviewState extends State<MapPreview> {
           options: MapOptions(
             initialCenter: widget.center,
             initialZoom: _zoom,
-            onPositionChanged: (position, _) {
-              final newZoom = position.zoom;
-              if (newZoom != null && (newZoom - _zoom).abs() > 0.1) {
-                setState(() => _zoom = newZoom);
-              }
-            },
+            onPositionChanged: (position, _) => _handlePositionChanged(position),
           ),
           children: [
             TileLayer(
