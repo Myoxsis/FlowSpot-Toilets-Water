@@ -14,6 +14,7 @@ import '../widgets/place_card.dart';
 import '../widgets/skeleton_loader.dart';
 import 'favorites_screen.dart';
 import 'place_detail_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -99,6 +100,12 @@ class _HomeScreenState extends State<HomeScreen> {
     await _refreshFavorites();
   }
 
+  void _openProfile() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ProfileScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentCenter = center ?? LocationService.parisFallback;
@@ -107,6 +114,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('FlowSpot'),
         actions: [
+          IconButton(
+            tooltip: 'Contributor profile',
+            onPressed: _openProfile,
+            icon: const Icon(Icons.person_outline),
+          ),
           IconButton(
             tooltip: 'Favorites',
             onPressed: _openFavorites,
