@@ -6,10 +6,12 @@ import '../repositories/place_repository.dart';
 import '../services/local_contribution_store.dart';
 import '../services/location_service.dart';
 import '../services/place_quality_service.dart';
+import '../theme/app_spacing.dart';
 import '../widgets/ad_placeholder.dart';
 import '../widgets/gamification_panel.dart';
 import '../widgets/map_preview.dart';
 import '../widgets/place_card.dart';
+import '../widgets/skeleton_loader.dart';
 import 'favorites_screen.dart';
 import 'place_detail_screen.dart';
 
@@ -125,24 +127,24 @@ class _HomeScreenState extends State<HomeScreen> {
       body: RefreshIndicator(
         onRefresh: _loadNearbyPlaces,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             if (isLoading)
-              const _LoadingMapCard()
+              const MapSkeleton()
             else
               MapPreview(
                 center: currentCenter,
                 places: visiblePlaces,
                 onPlaceTap: _openPlace,
               ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             _FilterChips(
               selectedType: selectedType,
               onChanged: (type) => setState(() => selectedType = type),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: AppSpacing.md),
             const AdPlaceholder(label: 'Native ad placeholder: nearby city utility'),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Row(
               children: [
                 Text('Recently verified', style: Theme.of(context).textTheme.titleLarge),
@@ -150,15 +152,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (!isLoading) Text('${visiblePlaces.length} found'),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             const Text('Sorted by trust, recent verification, then distance.'),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             if (isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(24),
-                  child: CircularProgressIndicator(),
-                ),
+              const Column(
+                children: [
+                  PlaceCardSkeleton(),
+                  PlaceCardSkeleton(),
+                  PlaceCardSkeleton(),
+                ],
               )
             else if (statusMessage != null)
               _StatusCard(message: statusMessage!, onRetry: _loadNearbyPlaces)
@@ -170,33 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => _openPlace(place),
                 ),
               ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.md),
             const GamificationPanel(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadingMapCard extends StatelessWidget {
-  const _LoadingMapCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 240,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      ),
-      child: const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 12),
-            Text('Finding toilets and fountains nearby...'),
           ],
         ),
       ),
@@ -214,13 +192,13 @@ class _StatusCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           children: [
             const Icon(Icons.info_outline),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
@@ -242,7 +220,7 @@ class _FilterChips extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
+      spacing: AppSpacing.sm,
       children: [
         ChoiceChip(
           label: const Text('All'),
