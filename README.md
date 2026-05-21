@@ -14,6 +14,7 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Offline cache for the last successful nearby results
 - Supabase backend scaffolding
 - Photo upload scaffolding
+- Contributor leaderboard scaffold
 - Place detail screen
 - Quick-review bottom sheet with structured tags
 - Local persistence for quick reviews, favorites, and contribution points
@@ -21,10 +22,17 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Gamification profile with points, levels, badges, and contribution actions
 - Ad placement placeholders for an ads-first monetization model
 
-## Future photo flow
+## Community direction
 
-1. User attaches a toilet/fountain photo
-2. Image uploads to Supabase Storage
-3. Moderation pipeline validates content
-4. Verified photos improve trust score
-5. Recent photos increase visibility ranking
+FlowSpot should progressively evolve into:
+
+- a city utility app
+- a trust-driven contribution platform
+- a lightweight civic community product
+
+Core retention loops:
+- verify places
+- upload photos
+- improve trust scores
+- climb contributor rankings
+- unlock badges and levels
