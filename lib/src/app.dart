@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'theme/app_theme.dart';
 
 class FlowSpotApp extends StatelessWidget {
   const FlowSpotApp({super.key});
@@ -10,10 +11,7 @@ class FlowSpotApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'FlowSpot',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1D9A8A)),
-        useMaterial3: true,
-      ),
+      theme: buildFlowSpotTheme(),
       home: const HomeScreen(),
     );
   }
