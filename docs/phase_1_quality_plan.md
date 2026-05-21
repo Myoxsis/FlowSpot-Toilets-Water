@@ -10,15 +10,18 @@ Phase 1 focuses on polish, performance, consistency, and friction removal rather
 4. Audit spacing and typography consistency
 5. Improve empty/loading/error states
 6. Make trust signals easier to scan
+7. Improve accessibility semantics
 
-## First optimization
+## Completed optimizations
 
-Map clustering is now cached by zoom bucket and place count so normal rebuilds do not recompute clusters unnecessarily.
+- Map clustering is cached by zoom bucket and place count so normal rebuilds do not recompute clusters unnecessarily.
+- Place cards and map markers now expose richer semantic labels for screen readers.
+- Decorative icons, trust visuals, and status pills are excluded from duplicate semantic reading.
 
 ## Next recommended audits
 
 - Extract reusable trust widgets
-- Add accessibility labels to markers and action buttons
+- Add accessibility labels to every icon-only action
 - Reduce duplicate trust-label logic across cards and sheets
 - Add performance-safe list rendering when nearby place count grows
 - Add consistent error and empty-state components

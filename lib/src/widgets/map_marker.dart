@@ -29,6 +29,8 @@ class _FlowSpotMapMarkerState extends State<FlowSpotMapMarker> {
 
   IconData get _icon => widget.place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop;
 
+  String get _semanticLabel => '${widget.place.typeLabel} ${widget.place.name}, ${widget.place.distanceLabel} away, trust ${widget.place.trustScore} percent';
+
   void _setPressed(bool value) {
     if (_isPressed == value) return;
     setState(() => _isPressed = value);
@@ -36,44 +38,49 @@ class _FlowSpotMapMarkerState extends State<FlowSpotMapMarker> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: widget.onTap,
-      onTapDown: (_) => _setPressed(true),
-      onTapCancel: () => _setPressed(false),
-      onTapUp: (_) => _setPressed(false),
-      child: AnimatedScale(
-        scale: _isPressed ? 1.12 : 1,
-        duration: const Duration(milliseconds: 140),
-        curve: Curves.easeOutBack,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 140),
-              width: _isPressed ? 50 : 46,
-              height: _isPressed ? 50 : 46,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _markerColor.withOpacity(_isPressed ? 0.26 : 0.18),
+    return Semantics(
+      button: true,
+      label: _semanticLabel,
+      hint: 'Open place preview',
+      child: GestureDetector(
+        onTap: widget.onTap,
+        onTapDown: (_) => _setPressed(true),
+        onTapCancel: () => _setPressed(false),
+        onTapUp: (_) => _setPressed(false),
+        child: AnimatedScale(
+          scale: _isPressed ? 1.12 : 1,
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutBack,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 140),
+                width: _isPressed ? 50 : 46,
+                height: _isPressed ? 50 : 46,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _markerColor.withOpacity(_isPressed ? 0.26 : 0.18),
+                ),
               ),
-            ),
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _markerColor,
-                boxShadow: [
-                  BoxShadow(
-                    color: _markerColor.withOpacity(0.34),
-                    blurRadius: 14,
-                    offset: const Offset(0, 6),
-                  ),
-                ],
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _markerColor,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _markerColor.withOpacity(0.34),
+                      blurRadius: 14,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Icon(_icon, color: Colors.white, size: 18),
               ),
-              child: Icon(_icon, color: Colors.white, size: 18),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -85,21 +92,24 @@ class CurrentLocationMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.primary.withOpacity(0.16),
-      ),
-      child: Center(
-        child: Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.primary,
-            border: Border.all(color: Colors.white, width: 3),
+    return Semantics(
+      label: 'Your current location',
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: AppColors.primary.withOpacity(0.16),
+        ),
+        child: Center(
+          child: Container(
+            width: 18,
+            height: 18,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.primary,
+              border: Border.all(color: Colors.white, width: 3),
+            ),
           ),
         ),
       ),
