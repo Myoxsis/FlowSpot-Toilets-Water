@@ -4,6 +4,7 @@ import '../models/place.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
+import 'pressable_scale.dart';
 
 class PlaceCard extends StatelessWidget {
   const PlaceCard({
@@ -33,10 +34,9 @@ class PlaceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final icon = place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop;
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: onTap,
+    return PressableScale(
+      onTap: onTap,
+      child: Card(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Row(

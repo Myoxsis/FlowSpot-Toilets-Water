@@ -8,6 +8,7 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Centralized FlowSpot design system
 - Redesigned trust-first nearby place cards
 - Custom trust-colored map markers
+- Press feedback micro-interactions
 - Polished trust-first bottom sheet previews
 - Real OpenStreetMap map preview via `flutter_map`
 - Bottom-sheet map marker previews
@@ -27,6 +28,7 @@ FlowSpot is optimized for confidence under movement:
 
 - large trust score visibility
 - custom semantic map markers
+- subtle motion feedback
 - reduced scan friction
 - clear open/free/verified states
 - trust-first preview sheets
