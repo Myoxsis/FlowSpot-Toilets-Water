@@ -6,6 +6,7 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 
 - Flutter app shell
 - Centralized FlowSpot design system
+- Redesigned trust-first nearby place cards
 - Real OpenStreetMap map preview via `flutter_map`
 - Bottom-sheet map marker previews
 - Device location lookup with Paris fallback
@@ -18,30 +19,12 @@ FlowSpot is a Flutter mobile app for finding nearby public toilets and drinking 
 - Contributor leaderboard scaffold
 - AdMob monetization scaffolding
 
-## Design system
+## Design direction
 
-Theme files live in `lib/src/theme`:
+FlowSpot is optimized for confidence under movement:
 
-- `app_colors.dart`
-- `app_spacing.dart`
-- `app_radius.dart`
-- `app_typography.dart`
-- `app_theme.dart`
-
-Design direction:
-- deep teal primary
-- soft civic background
-- rounded cards
-- calm utility typography
-- trust-oriented color semantics
-
-## Monetization philosophy
-
-FlowSpot should monetize without harming utility.
-
-Recommended ad strategy:
-- lightweight banner ads
-- contextual native ads
-- no aggressive interstitials
-- never interrupt emergency navigation
-- prioritize retention over short-term CPM
+- large trust score visibility
+- reduced scan friction
+- clear open/free/verified states
+- calm civic color system
+- rounded modern surfaces
