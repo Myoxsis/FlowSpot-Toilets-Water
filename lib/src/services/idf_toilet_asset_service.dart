@@ -11,7 +11,7 @@ class IdfToiletAssetService {
 
   Future<List<Place>> fetchNearbyToilets({
     required LatLng center,
-    int radiusMeters = 5000,
+    int radiusMeters = 15000,
   }) async {
     final raw = await rootBundle.loadString(assetPath);
     final rows = _parseCsv(raw);
@@ -25,13 +25,14 @@ class IdfToiletAssetService {
   }
 
   List<Map<String, String>> _parseCsv(String raw) {
-    final lines = raw.split(RegExp(r'\r?\n')).where((line) => line.trim().isNotEmpty).toList();
+    final cleanRaw = raw.replaceFirst('\uFEFF', '');
+    final lines = cleanRaw.split(RegExp(r'\r?\n')).where((line) => line.trim().isNotEmpty).toList();
     if (lines.isEmpty) return const [];
 
-    final headers = _splitLine(lines.first);
+    final headers = _splitLine(lines.first).map(_cleanCell).toList();
 
     return lines.skip(1).map((line) {
-      final values = _splitLine(line);
+      final values = _splitLine(line).map(_cleanCell).toList();
       final row = <String, String>{};
 
       for (var i = 0; i < headers.length; i++) {
@@ -53,14 +54,14 @@ class IdfToiletAssetService {
       if (char == '"') {
         inQuotes = !inQuotes;
       } else if (char == ';' && !inQuotes) {
-        values.add(buffer.toString().trim());
+        values.add(buffer.toString());
         buffer.clear();
       } else {
         buffer.write(char);
       }
     }
 
-    values.add(buffer.toString().trim());
+    values.add(buffer.toString());
     return values;
   }
 
@@ -69,15 +70,19 @@ class IdfToiletAssetService {
     if (coordinates == null) return null;
 
     final point = LatLng(coordinates.$1, coordinates.$2);
+    final osmId = row['osm_id'];
+    final city = row['nom_de_la_commune'];
+    final department = row['nom_departement'];
+    final source = row['Source']?.isNotEmpty == true ? row['Source']! : 'Ile-de-France open data';
+    final location = row['Indications de localisation'];
+    final openingHours = row["Horaires d'ouverture"];
 
     return Place(
-      id: 'idf-${row['osm_id'] ?? point.latitude}',
-      name: row['Type']?.isNotEmpty == true
-          ? row['Type']!
-          : 'Toilettes publiques',
+      id: 'idf-${osmId?.isNotEmpty == true ? osmId : '${point.latitude.toStringAsFixed(6)}-${point.longitude.toStringAsFixed(6)}'}',
+      name: row['Type']?.isNotEmpty == true ? row['Type']! : 'Toilettes publiques',
       type: PlaceType.toilet,
       distanceMeters: _distance.as(LengthUnit.Meter, center, point).round(),
-      address: row['Indications de localisation'] ?? '',
+      address: _address(location: location, city: city, department: department, openingHours: openingHours, source: source),
       isFree: !(row['Tarif']?.toLowerCase().contains('payant') ?? false),
       isOpen: true,
       isWheelchairAccessible: _parseYes(row['Accessibilite PMR']),
@@ -89,6 +94,16 @@ class IdfToiletAssetService {
       longitude: point.longitude,
       hasBabyChanging: _parseYes(row['Relais bébé']),
     );
+  }
+
+  String _address({String? location, String? city, String? department, String? openingHours, required String source}) {
+    return [
+      if (location != null && location.isNotEmpty) location,
+      if (city != null && city.isNotEmpty) city,
+      if (department != null && department.isNotEmpty) department,
+      if (openingHours != null && openingHours.isNotEmpty) openingHours,
+      source,
+    ].join(' • ');
   }
 
   (double, double)? _parseCoordinates(String? value) {
@@ -105,12 +120,11 @@ class IdfToiletAssetService {
     return (lat, lon);
   }
 
+  String _cleanCell(String value) => value.replaceFirst('\uFEFF', '').trim();
+
   bool _parseYes(String? value) {
     final normalized = value?.toLowerCase().trim() ?? '';
 
-    return normalized == 'oui' ||
-        normalized == 'yes' ||
-        normalized == 'true' ||
-        normalized == '1';
+    return normalized == 'oui' || normalized == 'yes' || normalized == 'true' || normalized == '1';
   }
 }
