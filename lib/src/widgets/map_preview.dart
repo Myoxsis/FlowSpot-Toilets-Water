@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../models/place.dart';
+import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import 'map_cluster_marker.dart';
@@ -28,7 +29,8 @@ class MapPreview extends StatefulWidget {
 }
 
 class _MapPreviewState extends State<MapPreview> {
-  double _zoom = 15;
+  final MapController _mapController = MapController();
+  double _zoom = 13;
   int? _cachedZoomBucket;
   int? _cachedPlaceCount;
   List<_PlaceCluster> _cachedClusters = const [];
@@ -49,6 +51,13 @@ class _MapPreviewState extends State<MapPreview> {
 
   int get _zoomBucket => (_zoom * 10).round();
 
+  int get _maxVisibleClusters {
+    if (_zoom < 12) return 80;
+    if (_zoom < 14) return 160;
+    if (_zoom < 16) return 280;
+    return 450;
+  }
+
   void _rebuildClusterCache() {
     _cachedZoomBucket = _zoomBucket;
     _cachedPlaceCount = widget.places.length;
@@ -63,11 +72,7 @@ class _MapPreviewState extends State<MapPreview> {
   }
 
   List<_PlaceCluster> _buildClusters() {
-    if (_zoom >= 16) {
-      return widget.places.map((place) => _PlaceCluster([place])).toList();
-    }
-
-    final threshold = _zoom >= 14.5 ? 0.0015 : 0.0035;
+    final threshold = _clusterThreshold;
     final clusters = <_PlaceCluster>[];
 
     for (final place in widget.places) {
@@ -88,13 +93,30 @@ class _MapPreviewState extends State<MapPreview> {
       }
     }
 
-    return clusters;
+    clusters.sort((a, b) => _distance(widget.center, a.center).compareTo(_distance(widget.center, b.center)));
+    return clusters.take(_maxVisibleClusters).toList();
+  }
+
+  double get _clusterThreshold {
+    if (_zoom < 12) return 0.015;
+    if (_zoom < 14) return 0.007;
+    if (_zoom < 16) return 0.0025;
+    return 0.0008;
   }
 
   double _distance(LatLng a, LatLng b) {
     final dLat = a.latitude - b.latitude;
     final dLng = a.longitude - b.longitude;
     return sqrt(dLat * dLat + dLng * dLng);
+  }
+
+  void _zoomBy(double delta) {
+    final nextZoom = (_zoom + delta).clamp(10.0, 18.0);
+    setState(() {
+      _zoom = nextZoom;
+      _rebuildClusterCache();
+    });
+    _mapController.move(_mapController.camera.center, nextZoom);
   }
 
   void _showPlacePreview(BuildContext context, Place place) {
@@ -112,6 +134,8 @@ class _MapPreviewState extends State<MapPreview> {
   }
 
   void _showClusterSheet(BuildContext context, _PlaceCluster cluster) {
+    final visiblePlaces = cluster.places.take(25).toList();
+
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -122,7 +146,7 @@ class _MapPreviewState extends State<MapPreview> {
           children: [
             Text('${cluster.places.length} spots nearby', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: AppSpacing.md),
-            ...cluster.places.map(
+            ...visiblePlaces.map(
               (place) => ListTile(
                 leading: Icon(place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop),
                 title: Text(place.name),
@@ -133,6 +157,11 @@ class _MapPreviewState extends State<MapPreview> {
                 },
               ),
             ),
+            if (cluster.places.length > visiblePlaces.length)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text('+${cluster.places.length - visiblePlaces.length} more nearby spots'),
+              ),
           ],
         ),
       ),
@@ -144,52 +173,105 @@ class _MapPreviewState extends State<MapPreview> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: SizedBox(
-        height: 240,
-        child: FlutterMap(
-          options: MapOptions(
-            initialCenter: widget.center,
-            initialZoom: _zoom,
-            onPositionChanged: (position, _) {
-              final newZoom = position.zoom;
-              if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
-              setState(() {
-                _zoom = newZoom;
-                _rebuildClusterCache();
-              });
-            },
-          ),
+        height: 260,
+        child: Stack(
           children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.flowspot.toilets_water',
-            ),
-            MarkerLayer(
-              markers: [
-                Marker(
-                  point: widget.center,
-                  width: 46,
-                  height: 46,
-                  child: const CurrentLocationMarker(),
+            FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: widget.center,
+                initialZoom: _zoom,
+                onPositionChanged: (position, _) {
+                  final newZoom = position.zoom;
+                  if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
+                  setState(() {
+                    _zoom = newZoom;
+                    _rebuildClusterCache();
+                  });
+                },
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.flowspot.toilets_water',
                 ),
-                ..._clusters.map(
-                  (cluster) => Marker(
-                    point: cluster.center,
-                    width: cluster.places.length == 1 ? 48 : 64,
-                    height: cluster.places.length == 1 ? 48 : 64,
-                    child: cluster.places.length == 1
-                        ? FlowSpotMapMarker(
-                            place: cluster.places.first,
-                            onTap: () => _showPlacePreview(context, cluster.places.first),
-                          )
-                        : MapClusterMarker(
-                            places: cluster.places,
-                            onTap: () => _showClusterSheet(context, cluster),
-                          ),
-                  ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: widget.center,
+                      width: 46,
+                      height: 46,
+                      child: const CurrentLocationMarker(),
+                    ),
+                    ..._clusters.map(
+                      (cluster) => Marker(
+                        point: cluster.center,
+                        width: cluster.places.length == 1 ? 48 : 64,
+                        height: cluster.places.length == 1 ? 48 : 64,
+                        child: cluster.places.length == 1
+                            ? FlowSpotMapMarker(
+                                place: cluster.places.first,
+                                onTap: () => _showPlacePreview(context, cluster.places.first),
+                              )
+                            : MapClusterMarker(
+                                places: cluster.places,
+                                onTap: () => _showClusterSheet(context, cluster),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
+            Positioned(
+              right: AppSpacing.sm,
+              bottom: AppSpacing.sm,
+              child: Column(
+                children: [
+                  _ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  const SizedBox(height: AppSpacing.sm),
+                  _ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                ],
+              ),
+            ),
+            Positioned(
+              left: AppSpacing.sm,
+              top: AppSpacing.sm,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                decoration: BoxDecoration(
+                  color: AppColors.surface.withOpacity(0.92),
+                  borderRadius: BorderRadius.circular(AppRadius.chip),
+                ),
+                child: Text('${widget.places.length} spots loaded'),
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ZoomButton extends StatelessWidget {
+  const _ZoomButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface.withOpacity(0.94),
+      borderRadius: BorderRadius.circular(16),
+      elevation: 4,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: SizedBox(
+          width: 42,
+          height: 42,
+          child: Icon(icon, color: AppColors.primary),
         ),
       ),
     );
