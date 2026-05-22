@@ -30,23 +30,44 @@ class _HomeScreenState extends State<HomeScreen> {
   final _store = LocalContributionStore();
 
   PlaceType? selectedType;
+  bool freeOnly = false;
+  bool paidOnly = false;
+  bool babyChangingOnly = false;
+  bool accessibleOnly = false;
   LatLng? center;
   List<Place> places = const [];
   Set<String> favoriteIds = const {};
   bool isLoading = true;
   String? statusMessage;
 
+  bool get hasAdvancedFilters => freeOnly || paidOnly || babyChangingOnly || accessibleOnly;
+
   List<Place> get visiblePlaces {
-    final filtered = selectedType == null
-        ? places
-        : places.where((place) => place.type == selectedType).toList();
-    return _qualityService.sortRecentlyVerified(filtered);
+    Iterable<Place> filtered = places;
+
+    if (selectedType != null) {
+      filtered = filtered.where((place) => place.type == selectedType);
+    }
+    if (freeOnly && !paidOnly) {
+      filtered = filtered.where((place) => place.isFree);
+    }
+    if (paidOnly && !freeOnly) {
+      filtered = filtered.where((place) => !place.isFree);
+    }
+    if (babyChangingOnly) {
+      filtered = filtered.where((place) => place.hasBabyChanging);
+    }
+    if (accessibleOnly) {
+      filtered = filtered.where((place) => place.isWheelchairAccessible);
+    }
+
+    return _qualityService.sortRecentlyVerified(filtered.toList());
   }
 
   @override
   void initState() {
     super.initState();
-    _loadNearbyPlaces();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadNearbyPlaces());
   }
 
   Future<void> _loadNearbyPlaces() async {
@@ -78,6 +99,15 @@ class _HomeScreenState extends State<HomeScreen> {
         statusMessage = 'Could not load nearby spots. Pull to retry.';
       });
     }
+  }
+
+  void _clearAdvancedFilters() {
+    setState(() {
+      freeOnly = false;
+      paidOnly = false;
+      babyChangingOnly = false;
+      accessibleOnly = false;
+    });
   }
 
   Future<void> _refreshFavorites() async {
@@ -154,6 +184,19 @@ class _HomeScreenState extends State<HomeScreen> {
               selectedType: selectedType,
               onChanged: (type) => setState(() => selectedType = type),
             ),
+            const SizedBox(height: AppSpacing.sm),
+            _AdvancedFilterChips(
+              freeOnly: freeOnly,
+              paidOnly: paidOnly,
+              babyChangingOnly: babyChangingOnly,
+              accessibleOnly: accessibleOnly,
+              hasFilters: hasAdvancedFilters,
+              onFreeChanged: (value) => setState(() => freeOnly = value),
+              onPaidChanged: (value) => setState(() => paidOnly = value),
+              onBabyChanged: (value) => setState(() => babyChangingOnly = value),
+              onAccessibleChanged: (value) => setState(() => accessibleOnly = value),
+              onClear: _clearAdvancedFilters,
+            ),
             const SizedBox(height: AppSpacing.md),
             const AdPlaceholder(label: 'Native ad placeholder: nearby city utility'),
             const SizedBox(height: AppSpacing.lg),
@@ -161,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text('Recently verified', style: Theme.of(context).textTheme.titleLarge),
                 const Spacer(),
-                if (!isLoading) Text('${visiblePlaces.length} found'),
+                if (!isLoading) Text('${visiblePlaces.length} / ${places.length} found'),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -176,14 +219,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               )
             else if (statusMessage != null)
-              _StatusCard(message: statusMessage!, onRetry: _loadNearbyPlaces)
+              _StatusCard(message: statusMessage!, onRetry: _loadNearbyPlaces, actionLabel: 'Try again')
+            else if (visiblePlaces.isEmpty)
+              _StatusCard(message: 'No spots match these filters.', onRetry: _clearAdvancedFilters, actionLabel: 'Clear filters')
             else
-              ...visiblePlaces.map(
+              ...visiblePlaces.take(80).map(
                 (place) => PlaceCard(
                   place: place,
                   isFavorite: favoriteIds.contains(place.id),
                   onTap: () => _openPlace(place),
                 ),
+              ),
+            if (!isLoading && visiblePlaces.length > 80)
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text('+${visiblePlaces.length - 80} more spots visible on the map'),
               ),
             const SizedBox(height: AppSpacing.md),
             const GamificationPanel(),
@@ -195,10 +245,11 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 class _StatusCard extends StatelessWidget {
-  const _StatusCard({required this.message, required this.onRetry});
+  const _StatusCard({required this.message, required this.onRetry, required this.actionLabel});
 
   final String message;
   final VoidCallback onRetry;
+  final String actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -214,15 +265,14 @@ class _StatusCard extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
+              label: Text(actionLabel),
             ),
           ],
         ),
       ),
     );
   }
-}
-
+}\n
 class _FilterChips extends StatelessWidget {
   const _FilterChips({required this.selectedType, required this.onChanged});
 
@@ -251,6 +301,72 @@ class _FilterChips extends StatelessWidget {
           selected: selectedType == PlaceType.fountain,
           onSelected: (_) => onChanged(PlaceType.fountain),
         ),
+      ],
+    );
+  }
+}
+
+class _AdvancedFilterChips extends StatelessWidget {
+  const _AdvancedFilterChips({
+    required this.freeOnly,
+    required this.paidOnly,
+    required this.babyChangingOnly,
+    required this.accessibleOnly,
+    required this.hasFilters,
+    required this.onFreeChanged,
+    required this.onPaidChanged,
+    required this.onBabyChanged,
+    required this.onAccessibleChanged,
+    required this.onClear,
+  });
+
+  final bool freeOnly;
+  final bool paidOnly;
+  final bool babyChangingOnly;
+  final bool accessibleOnly;
+  final bool hasFilters;
+  final ValueChanged<bool> onFreeChanged;
+  final ValueChanged<bool> onPaidChanged;
+  final ValueChanged<bool> onBabyChanged;
+  final ValueChanged<bool> onAccessibleChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        FilterChip(
+          label: const Text('Free'),
+          avatar: const Icon(Icons.euro, size: 18),
+          selected: freeOnly,
+          onSelected: onFreeChanged,
+        ),
+        FilterChip(
+          label: const Text('Paid'),
+          avatar: const Icon(Icons.payments_outlined, size: 18),
+          selected: paidOnly,
+          onSelected: onPaidChanged,
+        ),
+        FilterChip(
+          label: const Text('Baby'),
+          avatar: const Icon(Icons.child_friendly, size: 18),
+          selected: babyChangingOnly,
+          onSelected: onBabyChanged,
+        ),
+        FilterChip(
+          label: const Text('PMR'),
+          avatar: const Icon(Icons.accessible_forward, size: 18),
+          selected: accessibleOnly,
+          onSelected: onAccessibleChanged,
+        ),
+        if (hasFilters)
+          ActionChip(
+            label: const Text('Clear'),
+            avatar: const Icon(Icons.close, size: 18),
+            onPressed: onClear,
+          ),
       ],
     );
   }
