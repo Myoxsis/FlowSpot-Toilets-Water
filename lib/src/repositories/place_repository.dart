@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../data/sample_data.dart';
@@ -24,22 +25,23 @@ class PlaceRepository {
   final PlaceQualityService _qualityService;
 
   Future<List<Place>> getNearbyPlaces(LatLng center) async {
-    try {
-      final osmPlaces = await _osmService.fetchNearbyPlaces(center: center);
-      final officialPlaces = await _idfToiletAssetService.fetchNearbyToilets(center: center);
+    final osmPlaces = await _safeLoad(
+      label: 'OSM',
+      loader: () => _osmService.fetchNearbyPlaces(center: center),
+    );
 
-      final merged = [...osmPlaces, ...officialPlaces];
+    final officialPlaces = await _safeLoad(
+      label: 'IDF CSV',
+      loader: () => _idfToiletAssetService.fetchNearbyToilets(center: center),
+    );
 
-      if (merged.isNotEmpty) {
-        final sorted = _qualityService.sortRecentlyVerified(merged);
-        await _cache.savePlaces(sorted);
-        return sorted;
-      }
-    } catch (_) {
-      final cached = await _cache.loadPlaces();
-      if (cached.isNotEmpty) {
-        return _qualityService.sortRecentlyVerified(cached);
-      }
+    final merged = _deduplicate([...officialPlaces, ...osmPlaces]);
+    debugPrint('FlowSpot places loaded: official=${officialPlaces.length}, osm=${osmPlaces.length}, merged=${merged.length}');
+
+    if (merged.isNotEmpty) {
+      final sorted = _qualityService.sortRecentlyVerified(merged);
+      await _cache.savePlaces(sorted);
+      return sorted;
     }
 
     final cached = await _cache.loadPlaces();
@@ -48,5 +50,37 @@ class PlaceRepository {
     }
 
     return _qualityService.sortRecentlyVerified(samplePlaces);
+  }
+
+  Future<List<Place>> _safeLoad({
+    required String label,
+    required Future<List<Place>> Function() loader,
+  }) async {
+    try {
+      return await loader();
+    } catch (error, stackTrace) {
+      debugPrint('FlowSpot $label load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      return const [];
+    }
+  }
+
+  List<Place> _deduplicate(List<Place> places) {
+    final deduped = <Place>[];
+    const distance = Distance();
+
+    for (final place in places) {
+      final point = LatLng(place.latitude, place.longitude);
+      final alreadyExists = deduped.any((existing) {
+        final existingPoint = LatLng(existing.latitude, existing.longitude);
+        return distance.as(LengthUnit.Meter, point, existingPoint) < 25;
+      });
+
+      if (!alreadyExists) {
+        deduped.add(place);
+      }
+    }
+
+    return deduped;
   }
 }
