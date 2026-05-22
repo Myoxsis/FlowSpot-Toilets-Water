@@ -272,7 +272,8 @@ class _StatusCard extends StatelessWidget {
       ),
     );
   }
-}\n
+}
+
 class _FilterChips extends StatelessWidget {
   const _FilterChips({required this.selectedType, required this.onChanged});
 
