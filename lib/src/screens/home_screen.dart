@@ -208,7 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
-            const Text('Sorted by trust, recent verification, then distance.'),
+            const Text('Top trusted and freshest nearby spots.'),
             const SizedBox(height: AppSpacing.sm),
             if (isLoading)
               const Column(
@@ -223,17 +223,17 @@ class _HomeScreenState extends State<HomeScreen> {
             else if (visiblePlaces.isEmpty)
               _StatusCard(message: 'No spots match these filters.', onRetry: _clearAdvancedFilters, actionLabel: 'Clear filters')
             else
-              ...visiblePlaces.take(80).map(
+              ...visiblePlaces.take(5).map(
                 (place) => PlaceCard(
                   place: place,
                   isFavorite: favoriteIds.contains(place.id),
                   onTap: () => _openPlace(place),
                 ),
               ),
-            if (!isLoading && visiblePlaces.length > 80)
+            if (!isLoading && visiblePlaces.length > 5)
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Text('+${visiblePlaces.length - 80} more spots visible on the map'),
+                child: Text('+${visiblePlaces.length - 5} more spots available on the map explorer'),
               ),
             const SizedBox(height: AppSpacing.md),
             const GamificationPanel(),
