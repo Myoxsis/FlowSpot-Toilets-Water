@@ -8,6 +8,7 @@ class LocalContributionStore {
   static const _pointsKey = 'flowspot.contribution_points';
   static const _favoritesKey = 'flowspot.favorite_place_ids';
   static const _reviewsPrefix = 'flowspot.reviews.';
+  static const _verificationPrefix = 'flowspot.verification.';
 
   Future<int> loadPoints() async {
     final prefs = await SharedPreferences.getInstance();
@@ -62,5 +63,17 @@ class LocalContributionStore {
     final rawReviews = prefs.getStringList(key) ?? <String>[];
     rawReviews.insert(0, jsonEncode(review.toJson()));
     await prefs.setStringList(key, rawReviews);
+  }
+
+  Future<void> saveVerification(String placeId, String status) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('$_verificationPrefix$placeId', status);
+    await prefs.setString('$_verificationPrefix${placeId}_at', DateTime.now().toIso8601String());
+    await addPoints(status == 'open' ? 5 : 3);
+  }
+
+  Future<String?> loadVerificationStatus(String placeId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('$_verificationPrefix$placeId');
   }
 }
