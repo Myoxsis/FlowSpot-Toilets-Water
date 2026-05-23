@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/place.dart';
+import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
@@ -17,6 +18,8 @@ class PlaceCard extends StatelessWidget {
   final Place place;
   final VoidCallback onTap;
   final bool isFavorite;
+
+  static const _navigationService = NavigationService();
 
   Color get _trustColor {
     if (place.trustScore >= 80) return AppColors.trustHigh;
@@ -47,78 +50,102 @@ class PlaceCard extends StatelessWidget {
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
               children: [
-                _PlaceIcon(icon: icon, color: _trustColor),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _PlaceIcon(icon: icon, color: _trustColor),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Text(
-                              place.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  place.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                              ),
+                              if (isFavorite) ...[
+                                const SizedBox(width: AppSpacing.sm),
+                                const Icon(Icons.favorite, size: 18, color: AppColors.trustLow),
+                              ],
+                            ],
                           ),
-                          if (isFavorite) ...[
-                            const SizedBox(width: AppSpacing.sm),
-                            const Icon(Icons.favorite, size: 18, color: AppColors.trustLow),
-                          ],
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            '${place.distanceLabel} away • ${place.typeLabel}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.xs,
+                            children: [
+                              _StatusPill(
+                                label: place.isOpen ? 'Open now' : 'Likely closed',
+                                color: place.isOpen ? AppColors.trustHigh : AppColors.trustLow,
+                              ),
+                              _StatusPill(
+                                label: place.isFree ? 'Free' : 'Paid',
+                                color: AppColors.secondary,
+                              ),
+                              if (place.isWheelchairAccessible)
+                                const _StatusPill(
+                                  label: 'PMR',
+                                  color: AppColors.trustHigh,
+                                  icon: Icons.accessible_forward,
+                                ),
+                              if (place.hasBabyChanging)
+                                const _StatusPill(
+                                  label: 'Baby',
+                                  color: AppColors.primary,
+                                  icon: Icons.child_friendly,
+                                ),
+                              if (_isOfficialSource)
+                                const _StatusPill(
+                                  label: 'Official source',
+                                  color: AppColors.primary,
+                                  icon: Icons.verified,
+                                ),
+                              _StatusPill(
+                                label: 'Verified ${place.verifiedMinutesAgo}m ago',
+                                color: _trustColor,
+                              ),
+                            ],
+                          ),
                         ],
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        '${place.distanceLabel} away • ${place.typeLabel}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.xs,
-                        children: [
-                          _StatusPill(
-                            label: place.isOpen ? 'Open' : 'Closed',
-                            color: place.isOpen ? AppColors.trustHigh : AppColors.trustLow,
-                          ),
-                          _StatusPill(
-                            label: place.isFree ? 'Free' : 'Paid',
-                            color: AppColors.secondary,
-                          ),
-                          if (place.isWheelchairAccessible)
-                            const _StatusPill(
-                              label: 'PMR',
-                              color: AppColors.trustHigh,
-                              icon: Icons.accessible_forward,
-                            ),
-                          if (place.hasBabyChanging)
-                            const _StatusPill(
-                              label: 'Baby',
-                              color: AppColors.primary,
-                              icon: Icons.child_friendly,
-                            ),
-                          if (_isOfficialSource)
-                            const _StatusPill(
-                              label: 'Official source',
-                              color: AppColors.primary,
-                              icon: Icons.verified,
-                            ),
-                          _StatusPill(
-                            label: 'Verified ${place.verifiedMinutesAgo}m ago',
-                            color: _trustColor,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    _TrustScore(score: place.trustScore, label: _trustLabel, color: _trustColor),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.md),
-                _TrustScore(score: place.trustScore, label: _trustLabel, color: _trustColor),
+                const SizedBox(height: AppSpacing.md),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onTap,
+                        icon: const Icon(Icons.info_outline),
+                        label: const Text('Details'),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () => _navigationService.navigateToPlace(place),
+                        icon: const Icon(Icons.navigation),
+                        label: const Text('Navigate'),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
