@@ -30,6 +30,8 @@ class PlaceCard extends StatelessWidget {
     return 'Low confidence';
   }
 
+  bool get _isOfficialSource => place.id.startsWith('idf-');
+
   String get _semanticLabel => '${place.typeLabel} ${place.name}, ${place.distanceLabel} away, ${place.isOpen ? 'open' : 'closed'}, ${place.isFree ? 'free' : 'paid'}, trust ${place.trustScore} percent, $_trustLabel';
 
   @override
@@ -46,6 +48,7 @@ class PlaceCard extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _PlaceIcon(icon: icon, color: _trustColor),
                 const SizedBox(width: AppSpacing.md),
@@ -87,6 +90,24 @@ class PlaceCard extends StatelessWidget {
                             label: place.isFree ? 'Free' : 'Paid',
                             color: AppColors.secondary,
                           ),
+                          if (place.isWheelchairAccessible)
+                            const _StatusPill(
+                              label: 'PMR',
+                              color: AppColors.trustHigh,
+                              icon: Icons.accessible_forward,
+                            ),
+                          if (place.hasBabyChanging)
+                            const _StatusPill(
+                              label: 'Baby',
+                              color: AppColors.primary,
+                              icon: Icons.child_friendly,
+                            ),
+                          if (_isOfficialSource)
+                            const _StatusPill(
+                              label: 'Official source',
+                              color: AppColors.primary,
+                              icon: Icons.verified,
+                            ),
                           _StatusPill(
                             label: 'Verified ${place.verifiedMinutesAgo}m ago',
                             color: _trustColor,
@@ -175,10 +196,11 @@ class _TrustScore extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label, required this.color});
+  const _StatusPill({required this.label, required this.color, this.icon});
 
   final String label;
   final Color color;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -189,9 +211,18 @@ class _StatusPill extends StatelessWidget {
           color: color.withOpacity(0.10),
           borderRadius: BorderRadius.circular(AppRadius.chip),
         ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+            ),
+          ],
         ),
       ),
     );
