@@ -30,7 +30,11 @@ class MapPreview extends StatefulWidget {
 
 class _MapPreviewState extends State<MapPreview> {
   final MapController _mapController = MapController();
+
   double _zoom = 13;
+  bool _showSearchArea = false;
+  LatLng? _lastSearchCenter;
+
   int? _cachedZoomBucket;
   int? _cachedPlaceCount;
   List<_PlaceCluster> _cachedClusters = const [];
@@ -38,13 +42,17 @@ class _MapPreviewState extends State<MapPreview> {
   @override
   void initState() {
     super.initState();
+    _lastSearchCenter = widget.center;
     _rebuildClusterCache();
   }
 
   @override
   void didUpdateWidget(covariant MapPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.places.length != widget.places.length || oldWidget.places != widget.places) {
+      _showSearchArea = false;
+      _lastSearchCenter = _mapController.camera.center;
       _rebuildClusterCache();
     }
   }
@@ -119,6 +127,23 @@ class _MapPreviewState extends State<MapPreview> {
     _mapController.move(_mapController.camera.center, nextZoom);
   }
 
+  void _handleMapMovement(MapPosition position) {
+    final center = position.center;
+    final zoom = position.zoom;
+
+    if (zoom != null && (zoom - _zoom).abs() > 0.1) {
+      _zoom = zoom;
+      _rebuildClusterCache();
+    }
+
+    if (center != null && _lastSearchCenter != null) {
+      final moved = _distance(center, _lastSearchCenter!);
+      if (moved > 0.01) {
+        setState(() => _showSearchArea = true);
+      }
+    }
+  }
+
   void _showPlacePreview(BuildContext context, Place place) {
     showModalBottomSheet<void>(
       context: context,
@@ -181,14 +206,7 @@ class _MapPreviewState extends State<MapPreview> {
               options: MapOptions(
                 initialCenter: widget.center,
                 initialZoom: _zoom,
-                onPositionChanged: (position, _) {
-                  final newZoom = position.zoom;
-                  if (newZoom == null || (newZoom - _zoom).abs() <= 0.1) return;
-                  setState(() {
-                    _zoom = newZoom;
-                    _rebuildClusterCache();
-                  });
-                },
+                onPositionChanged: (position, _) => setState(() => _handleMapMovement(position)),
               ),
               children: [
                 TileLayer(
@@ -237,13 +255,31 @@ class _MapPreviewState extends State<MapPreview> {
             Positioned(
               left: AppSpacing.sm,
               top: AppSpacing.sm,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                decoration: BoxDecoration(
-                  color: AppColors.surface.withOpacity(0.92),
-                  borderRadius: BorderRadius.circular(AppRadius.chip),
-                ),
-                child: Text('${widget.places.length} spots loaded'),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                    ),
+                    child: Text('${widget.places.length} spots loaded'),
+                  ),
+                  if (_showSearchArea) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    FilledButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _showSearchArea = false;
+                          _lastSearchCenter = _mapController.camera.center;
+                        });
+                      },
+                      icon: const Icon(Icons.search, size: 18),
+                      label: const Text('Search this area'),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
