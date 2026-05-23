@@ -48,6 +48,8 @@ class _MapPreviewState extends State<MapPreview> {
     _rebuildClusterCache();
   }
 
+  int get _zoomBucket => (_zoom * 10).round();
+
   @override
   void didUpdateWidget(covariant MapPreview oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -58,8 +60,6 @@ class _MapPreviewState extends State<MapPreview> {
       _rebuildClusterCache();
     }
   }
-
-  int get _zoomBucket => (_zoom * 10).round();
 
   int get _maxVisibleClusters {
     if (_zoom < 10) return 40;
@@ -167,47 +167,13 @@ class _MapPreviewState extends State<MapPreview> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      backgroundColor: AppColors.surface,
       builder: (_) => PlacePreviewSheet(
         place: place,
         onOpenDetails: () {
           Navigator.of(context).pop();
           widget.onPlaceTap(place);
         },
-      ),
-    );
-  }
-
-  void _showClusterSheet(BuildContext context, _PlaceCluster cluster) {
-    final visiblePlaces = cluster.places.take(25).toList();
-
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (_) => SafeArea(
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(AppSpacing.md),
-          children: [
-            Text('${cluster.places.length} spots nearby', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: AppSpacing.md),
-            ...visiblePlaces.map(
-              (place) => ListTile(
-                leading: Icon(place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop),
-                title: Text(place.name),
-                subtitle: Text('${place.distanceLabel} • Trust ${place.trustScore}%'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showPlacePreview(context, place);
-                },
-              ),
-            ),
-            if (cluster.places.length > visiblePlaces.length)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Text('+${cluster.places.length - visiblePlaces.length} more nearby spots'),
-              ),
-          ],
-        ),
       ),
     );
   }
@@ -225,26 +191,27 @@ class _MapPreviewState extends State<MapPreview> {
               options: MapOptions(
                 initialCenter: widget.center,
                 initialZoom: _zoom,
+                backgroundColor: AppColors.mapLand,
                 onPositionChanged: (position, _) => _handleMapMovement(position),
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  urlTemplate: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
                   userAgentPackageName: 'com.flowspot.toilets_water',
                 ),
                 MarkerLayer(
                   markers: [
                     Marker(
                       point: widget.center,
-                      width: 46,
-                      height: 46,
+                      width: 54,
+                      height: 54,
                       child: const CurrentLocationMarker(),
                     ),
                     ..._clusters.map(
                       (cluster) => Marker(
                         point: cluster.center,
-                        width: cluster.places.length == 1 ? 48 : 64,
-                        height: cluster.places.length == 1 ? 48 : 64,
+                        width: cluster.places.length == 1 ? 52 : 72,
+                        height: cluster.places.length == 1 ? 52 : 72,
                         child: cluster.places.length == 1
                             ? FlowSpotMapMarker(
                                 place: cluster.places.first,
@@ -252,7 +219,7 @@ class _MapPreviewState extends State<MapPreview> {
                               )
                             : MapClusterMarker(
                                 places: cluster.places,
-                                onTap: () => _showClusterSheet(context, cluster),
+                                onTap: () {},
                               ),
                       ),
                     ),
@@ -260,43 +227,57 @@ class _MapPreviewState extends State<MapPreview> {
                 ),
               ],
             ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.03),
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.05),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
             Positioned(
-              right: AppSpacing.sm,
-              bottom: AppSpacing.sm,
+              right: AppSpacing.md,
+              bottom: AppSpacing.md,
               child: Column(
                 children: [
-                  _ZoomButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  _GlassMapButton(icon: Icons.add, onTap: () => _zoomBy(1)),
                   const SizedBox(height: AppSpacing.sm),
-                  _ZoomButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                  _GlassMapButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
                 ],
               ),
             ),
             Positioned(
-              left: AppSpacing.sm,
-              top: AppSpacing.sm,
+              left: AppSpacing.md,
+              top: AppSpacing.md,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(AppRadius.chip),
-                    ),
-                    child: Text('${widget.places.length} spots loaded'),
-                  ),
+                  _GlassInfoPill(label: '${widget.places.length} civic spots'),
                   const SizedBox(height: AppSpacing.sm),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface.withOpacity(0.92),
-                      borderRadius: BorderRadius.circular(AppRadius.chip),
-                    ),
-                    child: Text('Zoom ${_zoom.toStringAsFixed(1)} • ${_clusters.length} clusters'),
+                  _GlassInfoPill(
+                    label: 'Zoom ${_zoom.toStringAsFixed(1)} • ${_clusters.length} clusters',
                   ),
                   if (_showSearchArea) ...[
                     const SizedBox(height: AppSpacing.sm),
                     FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
                       onPressed: () {
                         setState(() {
                           _showSearchArea = false;
@@ -317,8 +298,8 @@ class _MapPreviewState extends State<MapPreview> {
   }
 }
 
-class _ZoomButton extends StatelessWidget {
-  const _ZoomButton({required this.icon, required this.onTap});
+class _GlassMapButton extends StatelessWidget {
+  const _GlassMapButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
@@ -326,17 +307,49 @@ class _ZoomButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.surface.withOpacity(0.94),
-      borderRadius: BorderRadius.circular(16),
-      elevation: 4,
+      color: AppColors.mapControl,
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.14),
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: onTap,
         child: SizedBox(
-          width: 42,
-          height: 42,
-          child: Icon(icon, color: AppColors.primary),
+          width: 48,
+          height: 48,
+          child: Icon(icon, color: AppColors.primaryDeep),
         ),
+      ),
+    );
+  }
+}
+
+class _GlassInfoPill extends StatelessWidget {
+  const _GlassInfoPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.glass,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: AppColors.textStrong,
+              fontWeight: FontWeight.w700,
+            ),
       ),
     );
   }
