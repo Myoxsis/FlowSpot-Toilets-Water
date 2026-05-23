@@ -167,7 +167,7 @@ class _MapPreviewState extends State<MapPreview> {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (_) => PlacePreviewSheet(
         place: place,
         onOpenDetails: () {
@@ -180,6 +180,14 @@ class _MapPreviewState extends State<MapPreview> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final overlayColor = isDark ? AppColors.darkGlass : AppColors.glass;
+    final labelColor = isDark ? AppColors.darkTextStrong : AppColors.textStrong;
+    final controlColor = isDark ? AppColors.darkMapControl : AppColors.mapControl;
+    final tileUrl = isDark
+        ? 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'
+        : 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png';
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: SizedBox(
@@ -191,12 +199,12 @@ class _MapPreviewState extends State<MapPreview> {
               options: MapOptions(
                 initialCenter: widget.center,
                 initialZoom: _zoom,
-                backgroundColor: AppColors.mapLand,
+                backgroundColor: isDark ? AppColors.darkMapLand : AppColors.mapLand,
                 onPositionChanged: (position, _) => _handleMapMovement(position),
               ),
               children: [
                 TileLayer(
-                  urlTemplate: 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                  urlTemplate: tileUrl,
                   userAgentPackageName: 'com.flowspot.toilets_water',
                 ),
                 MarkerLayer(
@@ -235,9 +243,9 @@ class _MapPreviewState extends State<MapPreview> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        Colors.black.withOpacity(0.03),
+                        Colors.black.withOpacity(isDark ? 0.18 : 0.03),
                         Colors.transparent,
-                        Colors.black.withOpacity(0.05),
+                        Colors.black.withOpacity(isDark ? 0.18 : 0.05),
                       ],
                     ),
                   ),
@@ -245,26 +253,36 @@ class _MapPreviewState extends State<MapPreview> {
               ),
             ),
             Positioned(
+              left: AppSpacing.md,
+              right: AppSpacing.md,
+              top: AppSpacing.md,
+              child: _FloatingSearchBar(
+                overlayColor: overlayColor,
+                labelColor: labelColor,
+                resultCount: widget.places.length,
+              ),
+            ),
+            Positioned(
               right: AppSpacing.md,
               bottom: AppSpacing.md,
               child: Column(
                 children: [
-                  _GlassMapButton(icon: Icons.add, onTap: () => _zoomBy(1)),
+                  _GlassMapButton(icon: Icons.add, onTap: () => _zoomBy(1), color: controlColor),
                   const SizedBox(height: AppSpacing.sm),
-                  _GlassMapButton(icon: Icons.remove, onTap: () => _zoomBy(-1)),
+                  _GlassMapButton(icon: Icons.remove, onTap: () => _zoomBy(-1), color: controlColor),
                 ],
               ),
             ),
             Positioned(
               left: AppSpacing.md,
-              top: AppSpacing.md,
+              top: 82,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _GlassInfoPill(label: '${widget.places.length} civic spots'),
-                  const SizedBox(height: AppSpacing.sm),
                   _GlassInfoPill(
                     label: 'Zoom ${_zoom.toStringAsFixed(1)} • ${_clusters.length} clusters',
+                    color: overlayColor,
+                    labelColor: labelColor,
                   ),
                   if (_showSearchArea) ...[
                     const SizedBox(height: AppSpacing.sm),
@@ -298,26 +316,88 @@ class _MapPreviewState extends State<MapPreview> {
   }
 }
 
-class _GlassMapButton extends StatelessWidget {
-  const _GlassMapButton({required this.icon, required this.onTap});
+class _FloatingSearchBar extends StatelessWidget {
+  const _FloatingSearchBar({
+    required this.overlayColor,
+    required this.labelColor,
+    required this.resultCount,
+  });
 
-  final IconData icon;
-  final VoidCallback onTap;
+  final Color overlayColor;
+  final Color labelColor;
+  final int resultCount;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.mapControl,
+      color: overlayColor,
+      elevation: 10,
+      shadowColor: Colors.black.withOpacity(0.12),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () {},
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              Icon(Icons.search, color: AppColors.primary, size: 22),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  'Search a place or neighborhood',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: labelColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  '$resultCount',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassMapButton extends StatelessWidget {
+  const _GlassMapButton({required this.icon, required this.onTap, required this.color});
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color,
       elevation: 8,
       shadowColor: Colors.black.withOpacity(0.14),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        child: SizedBox(
+        child: const SizedBox(
           width: 48,
           height: 48,
-          child: Icon(icon, color: AppColors.primaryDeep),
+          child: Icon(Icons.add, color: AppColors.primaryDeep),
         ),
       ),
     );
@@ -325,16 +405,18 @@ class _GlassMapButton extends StatelessWidget {
 }
 
 class _GlassInfoPill extends StatelessWidget {
-  const _GlassInfoPill({required this.label});
+  const _GlassInfoPill({required this.label, required this.color, required this.labelColor});
 
   final String label;
+  final Color color;
+  final Color labelColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.glass,
+        color: color,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
@@ -347,7 +429,7 @@ class _GlassInfoPill extends StatelessWidget {
       child: Text(
         label,
         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppColors.textStrong,
+              color: labelColor,
               fontWeight: FontWeight.w700,
             ),
       ),
