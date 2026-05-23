@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../models/place.dart';
+import '../services/local_contribution_store.dart';
 import '../services/navigation_service.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_radius.dart';
 import '../theme/app_spacing.dart';
 import 'pressable_scale.dart';
 
-class PlaceCard extends StatelessWidget {
+class PlaceCard extends StatefulWidget {
   const PlaceCard({
     super.key,
     required this.place,
@@ -19,26 +20,65 @@ class PlaceCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isFavorite;
 
+  @override
+  State<PlaceCard> createState() => _PlaceCardState();
+}
+
+class _PlaceCardState extends State<PlaceCard> {
   static const _navigationService = NavigationService();
+  static final _store = LocalContributionStore();
+
+  String? verificationStatus;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVerification();
+  }
+
+  Future<void> _loadVerification() async {
+    final status = await _store.loadVerificationStatus(widget.place.id);
+    if (!mounted) return;
+    setState(() => verificationStatus = status);
+  }
+
+  Future<void> _verify(String status) async {
+    await _store.saveVerification(widget.place.id, status);
+
+    if (!mounted) return;
+
+    setState(() => verificationStatus = status);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          status == 'open'
+              ? 'Thanks for verifying this place is open.'
+              : 'Thanks for reporting this place as closed.',
+        ),
+      ),
+    );
+  }
 
   Color get _trustColor {
-    if (place.trustScore >= 80) return AppColors.trustHigh;
-    if (place.trustScore >= 55) return AppColors.trustMedium;
+    if (widget.place.trustScore >= 80) return AppColors.trustHigh;
+    if (widget.place.trustScore >= 55) return AppColors.trustMedium;
     return AppColors.trustLow;
   }
 
   String get _trustLabel {
-    if (place.trustScore >= 80) return 'Highly reliable';
-    if (place.trustScore >= 55) return 'Needs confirmation';
+    if (widget.place.trustScore >= 80) return 'Highly reliable';
+    if (widget.place.trustScore >= 55) return 'Needs confirmation';
     return 'Low confidence';
   }
 
-  bool get _isOfficialSource => place.id.startsWith('idf-');
+  bool get _isOfficialSource => widget.place.id.startsWith('idf-');
 
-  String get _semanticLabel => '${place.typeLabel} ${place.name}, ${place.distanceLabel} away, ${place.isOpen ? 'open' : 'closed'}, ${place.isFree ? 'free' : 'paid'}, trust ${place.trustScore} percent, $_trustLabel';
+  String get _semanticLabel => '${widget.place.typeLabel} ${widget.place.name}, ${widget.place.distanceLabel} away, ${widget.place.isOpen ? 'open' : 'closed'}, ${widget.place.isFree ? 'free' : 'paid'}, trust ${widget.place.trustScore} percent, $_trustLabel';
 
   @override
   Widget build(BuildContext context) {
+    final place = widget.place;
     final icon = place.type == PlaceType.toilet ? Icons.wc : Icons.water_drop;
 
     return Semantics(
@@ -46,7 +86,7 @@ class PlaceCard extends StatelessWidget {
       label: _semanticLabel,
       hint: 'Open place details',
       child: PressableScale(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Card(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -71,7 +111,7 @@ class PlaceCard extends StatelessWidget {
                                   style: Theme.of(context).textTheme.titleMedium,
                                 ),
                               ),
-                              if (isFavorite) ...[
+                              if (widget.isFavorite) ...[
                                 const SizedBox(width: AppSpacing.sm),
                                 const Icon(Icons.favorite, size: 18, color: AppColors.trustLow),
                               ],
@@ -113,6 +153,18 @@ class PlaceCard extends StatelessWidget {
                                   color: AppColors.primary,
                                   icon: Icons.verified,
                                 ),
+                              if (verificationStatus == 'open')
+                                const _StatusPill(
+                                  label: 'Community verified',
+                                  color: AppColors.trustHigh,
+                                  icon: Icons.check_circle,
+                                ),
+                              if (verificationStatus == 'closed')
+                                const _StatusPill(
+                                  label: 'Reported closed',
+                                  color: AppColors.trustLow,
+                                  icon: Icons.warning_amber,
+                                ),
                               _StatusPill(
                                 label: 'Verified ${place.verifiedMinutesAgo}m ago',
                                 color: _trustColor,
@@ -131,7 +183,7 @@ class PlaceCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: onTap,
+                        onPressed: widget.onTap,
                         icon: const Icon(Icons.info_outline),
                         label: const Text('Details'),
                       ),
@@ -142,6 +194,25 @@ class PlaceCard extends StatelessWidget {
                         onPressed: () => _navigationService.navigateToPlace(place),
                         icon: const Icon(Icons.navigation),
                         label: const Text('Navigate'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => _verify('open'),
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Verify open'),
+                      ),
+                    ),
+                    Expanded(
+                      child: TextButton.icon(
+                        onPressed: () => _verify('closed'),
+                        icon: const Icon(Icons.report_problem_outlined),
+                        label: const Text('Report closed'),
                       ),
                     ),
                   ],
