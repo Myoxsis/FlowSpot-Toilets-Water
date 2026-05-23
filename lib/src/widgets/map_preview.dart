@@ -18,11 +18,13 @@ class MapPreview extends StatefulWidget {
     required this.center,
     required this.places,
     required this.onPlaceTap,
+    this.height = 260,
   });
 
   final LatLng center;
   final List<Place> places;
   final ValueChanged<Place> onPlaceTap;
+  final double height;
 
   @override
   State<MapPreview> createState() => _MapPreviewState();
@@ -60,10 +62,12 @@ class _MapPreviewState extends State<MapPreview> {
   int get _zoomBucket => (_zoom * 10).round();
 
   int get _maxVisibleClusters {
+    if (_zoom < 10) return 40;
     if (_zoom < 12) return 80;
-    if (_zoom < 14) return 160;
-    if (_zoom < 16) return 280;
-    return 450;
+    if (_zoom < 14) return 140;
+    if (_zoom < 15.5) return 220;
+    if (_zoom < 17) return 360;
+    return 600;
   }
 
   void _rebuildClusterCache() {
@@ -101,15 +105,24 @@ class _MapPreviewState extends State<MapPreview> {
       }
     }
 
-    clusters.sort((a, b) => _distance(widget.center, a.center).compareTo(_distance(widget.center, b.center)));
+    clusters.sort((a, b) {
+      final sizeCompare = b.places.length.compareTo(a.places.length);
+      if (sizeCompare != 0) return sizeCompare;
+
+      return _distance(widget.center, a.center).compareTo(_distance(widget.center, b.center));
+    });
+
     return clusters.take(_maxVisibleClusters).toList();
   }
 
   double get _clusterThreshold {
+    if (_zoom < 9) return 0.04;
+    if (_zoom < 10.5) return 0.025;
     if (_zoom < 12) return 0.015;
-    if (_zoom < 14) return 0.007;
-    if (_zoom < 16) return 0.0025;
-    return 0.0008;
+    if (_zoom < 13.5) return 0.008;
+    if (_zoom < 15) return 0.004;
+    if (_zoom < 16.5) return 0.002;
+    return 0.0007;
   }
 
   double _distance(LatLng a, LatLng b) {
@@ -119,7 +132,7 @@ class _MapPreviewState extends State<MapPreview> {
   }
 
   void _zoomBy(double delta) {
-    final nextZoom = (_zoom + delta).clamp(10.0, 18.0);
+    final nextZoom = (_zoom + delta).clamp(8.0, 18.0);
     setState(() {
       _zoom = nextZoom;
       _rebuildClusterCache();
@@ -204,7 +217,7 @@ class _MapPreviewState extends State<MapPreview> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(AppRadius.card),
       child: SizedBox(
-        height: 260,
+        height: widget.height,
         child: Stack(
           children: [
             FlutterMap(
@@ -271,6 +284,15 @@ class _MapPreviewState extends State<MapPreview> {
                       borderRadius: BorderRadius.circular(AppRadius.chip),
                     ),
                     child: Text('${widget.places.length} spots loaded'),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface.withOpacity(0.92),
+                      borderRadius: BorderRadius.circular(AppRadius.chip),
+                    ),
+                    child: Text('Zoom ${_zoom.toStringAsFixed(1)} • ${_clusters.length} clusters'),
                   ),
                   if (_showSearchArea) ...[
                     const SizedBox(height: AppSpacing.sm),
