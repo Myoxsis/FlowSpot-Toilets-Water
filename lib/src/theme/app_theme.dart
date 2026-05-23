@@ -15,25 +15,66 @@ ThemeData buildFlowSpotTheme() {
     brightness: Brightness.light,
   );
 
+  return _buildTheme(
+    colorScheme: colorScheme,
+    background: AppColors.background,
+    surface: AppColors.surface,
+    surfaceMuted: AppColors.surfaceMuted,
+    textStrong: AppColors.textStrong,
+    textMuted: AppColors.textMuted,
+  );
+}
+
+ThemeData buildFlowSpotDarkTheme() {
+  final colorScheme = ColorScheme.fromSeed(
+    seedColor: AppColors.primary,
+    primary: AppColors.secondary,
+    secondary: AppColors.accent,
+    surface: AppColors.darkSurface,
+    error: AppColors.trustLow,
+    brightness: Brightness.dark,
+  );
+
+  return _buildTheme(
+    colorScheme: colorScheme,
+    background: AppColors.darkBackground,
+    surface: AppColors.darkSurface,
+    surfaceMuted: AppColors.darkSurfaceMuted,
+    textStrong: AppColors.darkTextStrong,
+    textMuted: AppColors.darkTextMuted,
+  );
+}
+
+ThemeData _buildTheme({
+  required ColorScheme colorScheme,
+  required Color background,
+  required Color surface,
+  required Color surfaceMuted,
+  required Color textStrong,
+  required Color textMuted,
+}) {
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
-    scaffoldBackgroundColor: AppColors.background,
+    scaffoldBackgroundColor: background,
     fontFamily: AppTypography.fontFamily,
-    textTheme: AppTypography.textTheme,
-    appBarTheme: const AppBarTheme(
-      backgroundColor: AppColors.background,
-      foregroundColor: AppColors.textStrong,
+    textTheme: AppTypography.textTheme.apply(
+      bodyColor: textStrong,
+      displayColor: textStrong,
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: background,
+      foregroundColor: textStrong,
       elevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.w700,
-        color: AppColors.textStrong,
+        color: textStrong,
       ),
     ),
     cardTheme: CardThemeData(
-      color: AppColors.surface,
+      color: surface,
       elevation: 0,
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       shape: RoundedRectangleBorder(
@@ -41,12 +82,13 @@ ThemeData buildFlowSpotTheme() {
       ),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: AppColors.surfaceMuted,
-      selectedColor: AppColors.secondary.withOpacity(0.16),
+      backgroundColor: surfaceMuted,
+      selectedColor: AppColors.secondary.withOpacity(0.18),
       side: BorderSide.none,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.chip),
       ),
+      labelStyle: TextStyle(color: textStrong),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -63,8 +105,8 @@ ThemeData buildFlowSpotTheme() {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primary,
-        side: const BorderSide(color: AppColors.primary),
+        foregroundColor: colorScheme.primary,
+        side: BorderSide(color: colorScheme.primary),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.button),
         ),
@@ -76,7 +118,8 @@ ThemeData buildFlowSpotTheme() {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: AppColors.surface,
+      fillColor: surface,
+      hintStyle: TextStyle(color: textMuted),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
         borderSide: BorderSide.none,
