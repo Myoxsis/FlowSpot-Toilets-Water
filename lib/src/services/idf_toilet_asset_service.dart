@@ -76,6 +76,7 @@ class IdfToiletAssetService {
     final source = row['Source']?.isNotEmpty == true ? row['Source']! : 'Ile-de-France open data';
     final location = row['Indications de localisation'];
     final openingHours = row["Horaires d'ouverture"];
+    final is24h = _is24Hours(openingHours);
 
     return Place(
       id: 'idf-${osmId?.isNotEmpty == true ? osmId : '${point.latitude.toStringAsFixed(6)}-${point.longitude.toStringAsFixed(6)}'}',
@@ -84,11 +85,11 @@ class IdfToiletAssetService {
       distanceMeters: _distance.as(LengthUnit.Meter, center, point).round(),
       address: _address(location: location, city: city, department: department, openingHours: openingHours, source: source),
       isFree: !(row['Tarif']?.toLowerCase().contains('payant') ?? false),
-      isOpen: true,
+      isOpen: is24h || _inferOpenStatus(openingHours),
       isWheelchairAccessible: _parseYes(row['Accessibilite PMR']),
       cleanlinessScore: 0,
-      trustScore: 76,
-      verifiedMinutesAgo: 240,
+      trustScore: is24h ? 82 : 76,
+      verifiedMinutesAgo: is24h ? 90 : 240,
       reviewCount: 0,
       latitude: point.latitude,
       longitude: point.longitude,
@@ -104,6 +105,35 @@ class IdfToiletAssetService {
       if (openingHours != null && openingHours.isNotEmpty) openingHours,
       source,
     ].join(' • ');
+  }
+
+  bool _is24Hours(String? openingHours) {
+    if (openingHours == null) return false;
+
+    final normalized = openingHours.toLowerCase();
+    return normalized.contains('24 h') ||
+        normalized.contains('24h') ||
+        normalized.contains('24/24') ||
+        normalized.contains('24 h / 24');
+  }
+
+  bool _inferOpenStatus(String? openingHours) {
+    if (openingHours == null || openingHours.isEmpty) {
+      return true;
+    }
+
+    final hour = DateTime.now().hour;
+    final normalized = openingHours.toLowerCase();
+
+    if (normalized.contains('6 h - 22 h')) {
+      return hour >= 6 && hour < 22;
+    }
+
+    if (normalized.contains('7 h - 20 h')) {
+      return hour >= 7 && hour < 20;
+    }
+
+    return true;
   }
 
   (double, double)? _parseCoordinates(String? value) {
