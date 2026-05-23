@@ -140,6 +140,25 @@ class _MapPreviewState extends State<MapPreview> {
     _mapController.move(_mapController.camera.center, nextZoom);
   }
 
+  void _zoomToNearestPlace() {
+    if (widget.places.isEmpty) return;
+
+    final nearest = [...widget.places]..sort((a, b) => a.distanceMeters.compareTo(b.distanceMeters));
+    final place = nearest.first;
+    final point = LatLng(place.latitude, place.longitude);
+    final nextZoom = max(_zoom, 16.0);
+
+    setState(() {
+      _zoom = nextZoom;
+      _showSearchArea = false;
+      _lastSearchCenter = point;
+      _rebuildClusterCache();
+    });
+
+    _mapController.move(point, nextZoom);
+    _showPlacePreview(context, place);
+  }
+
   void _handleMapMovement(dynamic position) {
     final center = position.center as LatLng?;
     final zoom = position.zoom as double?;
@@ -270,6 +289,8 @@ class _MapPreviewState extends State<MapPreview> {
                   _GlassMapButton(icon: Icons.add, onTap: () => _zoomBy(1), color: controlColor),
                   const SizedBox(height: AppSpacing.sm),
                   _GlassMapButton(icon: Icons.remove, onTap: () => _zoomBy(-1), color: controlColor),
+                  const SizedBox(height: AppSpacing.sm),
+                  _GlassMapButton(icon: Icons.near_me, onTap: _zoomToNearestPlace, color: controlColor),
                 ],
               ),
             ),
@@ -394,10 +415,10 @@ class _GlassMapButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
         onTap: onTap,
-        child: const SizedBox(
+        child: SizedBox(
           width: 48,
           height: 48,
-          child: Icon(Icons.add, color: AppColors.primaryDeep),
+          child: Icon(icon, color: AppColors.primaryDeep),
         ),
       ),
     );
