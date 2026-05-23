@@ -127,21 +127,27 @@ class _MapPreviewState extends State<MapPreview> {
     _mapController.move(_mapController.camera.center, nextZoom);
   }
 
-  void _handleMapMovement(MapPosition position) {
-    final center = position.center;
-    final zoom = position.zoom;
+  void _handleMapMovement(dynamic position) {
+    final center = position.center as LatLng?;
+    final zoom = position.zoom as double?;
+
+    var needsRebuild = false;
 
     if (zoom != null && (zoom - _zoom).abs() > 0.1) {
       _zoom = zoom;
       _rebuildClusterCache();
+      needsRebuild = true;
     }
 
     if (center != null && _lastSearchCenter != null) {
       final moved = _distance(center, _lastSearchCenter!);
-      if (moved > 0.01) {
-        setState(() => _showSearchArea = true);
+      if (moved > 0.01 && !_showSearchArea) {
+        _showSearchArea = true;
+        needsRebuild = true;
       }
     }
+
+    if (needsRebuild) setState(() {});
   }
 
   void _showPlacePreview(BuildContext context, Place place) {
@@ -206,7 +212,7 @@ class _MapPreviewState extends State<MapPreview> {
               options: MapOptions(
                 initialCenter: widget.center,
                 initialZoom: _zoom,
-                onPositionChanged: (position, _) => setState(() => _handleMapMovement(position)),
+                onPositionChanged: (position, _) => _handleMapMovement(position),
               ),
               children: [
                 TileLayer(
