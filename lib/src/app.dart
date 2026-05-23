@@ -14,6 +14,8 @@ class FlowSpotApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'FlowSpot',
       theme: buildFlowSpotTheme(),
+      darkTheme: buildFlowSpotDarkTheme(),
+      themeMode: ThemeMode.system,
       home: const _StartupGate(),
     );
   }
